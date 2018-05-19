@@ -5,12 +5,26 @@
     <h2>Client: {{client}} </h2>
     <h2>Provider: {{provider}} </h2>
 
-    <h2> You are the {{role}}. </h2>
-    <div v-if="role === null">
+    <h2> Your role: {{role}} </h2>
+    <div v-if="role === ''">
       <b-form-input v-model="currentAccount" type="text" placeholder="Enter Your Address"></b-form-input>
       <b-form-input v-model="passCode" type="text" placeholder="Enter Your Passcode"></b-form-input>
       <b-button v-on:click="authenticate()" variant="primary">Authenticate</b-button>
     </div>
+
+    <div v-if="role === 'Client' && contractInstance.currentState() == 0">
+      <b-button v-on:click="confirmPayment()">
+              Send Payment
+      </b-button>
+    </div>
+
+    <div v-if="role === 'Client' && contractInstance.currentState() == 1">
+      <b-button v-on:click="confirmDelivery()">
+              Confirm Work Complete
+      </b-button>
+    </div>
+
+
 
   </div>
 </template>
@@ -28,8 +42,9 @@ export default {
       provider: "",
       client: "",
       currentAccount: "",
-      role: null,
-      passCode: ""
+      role: "",
+      passCode: "",
+      state: 0
     }
   },
 
@@ -48,10 +63,42 @@ export default {
     } else {
         console.log("2");
     }*/
+    console.log(this.web3);
+    console.log(this.contractInstance);
+    console.log(this.contractInstance.currentState());
 
   },
 
   methods: {
+
+    confirmPayment(){
+      console.log(this.contractInstance.buyer());
+      this.web3.eth.defaultAccount = this.client;
+      this.contractInstance.confirmPayment({from: this.client, value: this.web3.toWei(1, "ether")}, function(err, result){
+        console.log(err);
+        console.log(result);
+      });
+
+    },
+
+    confirmDelivery(){
+      console.log(this.contractInstance.buyer());
+      this.web3.eth.defaultAccount = this.client;
+      this.contractInstance.confirmDelivery(function(err, result){
+        console.log(err);
+        console.log(result);
+      });
+    },
+
+    getAccountFromArray(address){
+      for(var i=0; i<this.web3.eth.accounts.length; i++){
+        if(address.toUpperCase() == this.web3.eth.accounts[i].toUpperCase()){
+          return i;
+        }
+      }
+
+      return "Not Found";
+    },
 
     authenticate(){
       var userRef = firebase.database().ref('users/' + this.currentAccount);
@@ -89,9 +136,6 @@ export default {
     },
 
     determineRole(){
-      console.log("Determining Role for " + this.currentAccount);
-      console.log(this.provider);
-      console.log(this.client);
       if(this.provider.toUpperCase() == this.currentAccount.toUpperCase()){
         console.log("Provider");
         this.role = "Service Provider";
