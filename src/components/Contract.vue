@@ -6,6 +6,7 @@
     <h2>Provider: {{provider}} </h2>
 
     <h2> Your role: {{role}} </h2>
+
     <div v-if="role === ''">
       <b-form-input v-model="currentAccount" type="text" placeholder="Enter Your Address"></b-form-input>
       <b-form-input v-model="passCode" type="text" placeholder="Enter Your Passcode"></b-form-input>
@@ -24,7 +25,17 @@
       </b-button>
     </div>
 
+    <div v-if="role === 'Provider' && contractInstance.currentState() == 1">
+      <b-button v-on:click="refundBuyer()">
+              Refund Client
+      </b-button>
+    </div>
 
+    <div v-if="role !== ''">
+      <b-button v-on:click="setArbiter()">
+              Assign Arbiter
+      </b-button>
+    </div>
 
   </div>
 </template>
@@ -52,17 +63,7 @@ export default {
     console.log("hi");
 
     this.load();
-    /*var ethereumUri = 'http://127.0.0.1:7545';   // 8540, 8545, 8180
-    var web3 = window.web3;
-    if(typeof web3 !== 'undefined') {
-        console.log("1");
-        console.log(web3.currentProvider);
-        web3 = new Web3(web3.currentProvider);
-        console.log(web3);
-        //console.log(web3.eth.accounts[0]);
-    } else {
-        console.log("2");
-    }*/
+
     console.log(this.web3);
     console.log(this.contractInstance);
     console.log(this.contractInstance.currentState());
@@ -71,10 +72,47 @@ export default {
 
   methods: {
 
+    setArbiter(){
+      var contractAddress = this.contractAddress;
+
+      var ref = firebase.database().ref('arbiters/');
+      ref.on("value", function(snapshot) {
+        console.log(snapshot.val());
+        var keys = Object.keys(snapshot.val());
+
+        //filter out taken arbiters
+        var filteredKeys = [];
+        for(var i=0; i<keys.length; i++){
+          var ref2 = firebase.database().ref('arbiters/' + keys[i]);
+          ref2.on("value", function(snapshot){
+            if(snapshot.val()["contractaddress"] == ""){
+              filteredKeys.push(keys[i]);
+            }
+          });
+        }
+
+        var num = Math.floor(Math.random() * (filteredKeys.length - 0));
+        var ref2 = firebase.database().ref('arbiters/' + filteredKeys[num]);
+        ref2.on("value", function(snapshot){
+            console.log("Your arbiter is: " + snapshot.val()["address"]);
+            ref2.update({
+              "contractaddress": contractAddress
+            });
+            //call smart contract function
+        });
+
+        console.log("Done");
+
+      }, function (errorObject) {
+        console.log("The read failed: " + errorObject.code);
+      });
+
+    },
+
     confirmPayment(){
       console.log(this.contractInstance.buyer());
       this.web3.eth.defaultAccount = this.client;
-      this.contractInstance.confirmPayment({from: this.client, value: this.web3.toWei(1, "ether")}, function(err, result){
+      this.contractInstance.confirmPayment.sendTransaction({from: this.client, value: this.web3.toWei(1, "ether")}, function(err, result){
         console.log(err);
         console.log(result);
       });
@@ -85,6 +123,15 @@ export default {
       console.log(this.contractInstance.buyer());
       this.web3.eth.defaultAccount = this.client;
       this.contractInstance.confirmDelivery(function(err, result){
+        console.log(err);
+        console.log(result);
+      });
+    },
+
+    refundBuyer(){
+      console.log(this.contractInstance.seller());
+      this.web3.eth.defaultAccount = this.provider;
+      this.contractInstance.refundBuyer(function(err, result){
         console.log(err);
         console.log(result);
       });
@@ -138,7 +185,7 @@ export default {
     determineRole(){
       if(this.provider.toUpperCase() == this.currentAccount.toUpperCase()){
         console.log("Provider");
-        this.role = "Service Provider";
+        this.role = "Provider";
       }else if(this.client.toUpperCase() == this.currentAccount.toUpperCase()){
         console.log("Client");
         this.role = "Client";
