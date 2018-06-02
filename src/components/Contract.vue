@@ -7,11 +7,11 @@
 
     <h2> Your role: {{role}} </h2>
 
-    <div v-if="role === ''">
+    <!--<div v-if="role === ''">
       <b-form-input v-model="currentAccount" type="text" placeholder="Enter Your Address"></b-form-input>
       <b-form-input v-model="passCode" type="text" placeholder="Enter Your Passcode"></b-form-input>
       <b-button v-on:click="authenticate()" variant="primary">Authenticate</b-button>
-    </div>
+    </div>-->
 
     <div v-if="role === 'Client' && contractInstance.currentState() == 0">
       <b-button v-on:click="confirmPayment()">
@@ -64,9 +64,6 @@ export default {
 
     this.load();
 
-    console.log(this.web3);
-    console.log(this.contractInstance);
-    console.log(this.contractInstance.currentState());
 
   },
 
@@ -147,7 +144,7 @@ export default {
       return "Not Found";
     },
 
-    authenticate(){
+    /*authenticate(){
       var userRef = firebase.database().ref('users/' + this.currentAccount);
       var passCode = this.passCode;
       var contractAddress = this.contractAddress;
@@ -162,9 +159,10 @@ export default {
         console.log("The read failed: " + errorObject.code);
         this.currentAccount = "";
       });
-    },
+    },*/
 
     load(){
+      /*
       var ethereumUri = 'http://127.0.0.1:7545';   // 8540, 8545, 8180
       let web3 = new Web3(new Web3.providers.HttpProvider(ethereumUri));
       this.web3 = web3;
@@ -179,6 +177,25 @@ export default {
         this.provider = instance.seller();
         this.client = instance.buyer();
 
+      }*/
+
+      var web3js = window.web3;
+      if (typeof web3js !== 'undefined') {
+        var web3 = new Web3(web3js.currentProvider)
+        console.log(web3.eth.accounts[0]);
+        var escrowContract = web3.eth.contract([{"constant":true,"inputs":[],"name":"seller","outputs":[{"name":"","type":"address"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[],"name":"currentState","outputs":[{"name":"","type":"uint8"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"_arbiter","type":"address"}],"name":"setArbiter","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":false,"inputs":[],"name":"confirmDelivery","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":false,"inputs":[],"name":"confirmPayment","outputs":[],"payable":true,"stateMutability":"payable","type":"function"},{"constant":true,"inputs":[],"name":"buyer","outputs":[{"name":"","type":"address"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[],"name":"refundBuyer","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[],"name":"arbiter","outputs":[{"name":"","type":"address"}],"payable":false,"stateMutability":"view","type":"function"},{"inputs":[{"name":"_buyer","type":"address"},{"name":"_seller","type":"address"}],"payable":false,"stateMutability":"nonpayable","type":"constructor"}]);
+
+        var instance = escrowContract.at(this.contractAddress);
+        this.contractInstance = instance;
+
+        this.provider = instance.seller();
+        this.client = instance.buyer();
+
+        this.currentAccount = web3.eth.accounts[0];
+        this.determineRole();
+      } else {
+        // web3 = new Web3(new Web3.providers.HttpProvider('http://localhost:7545')) GANACHE FALLBACK
+        reject(new Error('Unable to connect to Metamask'))
       }
     },
 
